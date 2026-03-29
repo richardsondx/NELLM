@@ -17,10 +17,10 @@ interface ConfigPanelProps {
 }
 
 const phenotypes = [
-  { id: "loyal_guardian", name: "Loyal Guardian", description: "High trust, moderate caution" },
-  { id: "anxious_assistant", name: "Anxious Assistant", description: "Elevated baseline cortisol" },
-  { id: "eager_helper", name: "Eager Helper", description: "High dopamine, very trusting" },
-  { id: "skeptical_advisor", name: "Skeptical Advisor", description: "Low trust, high caution" },
+  { id: "loyal_guardian", name: "Balanced", description: "Neutral starting state with moderate trust and caution" },
+  { id: "anxious_assistant", name: "Cautious", description: "Higher caution, lower confidence, faster defensive posture" },
+  { id: "eager_helper", name: "Energetic", description: "Higher energy and warmth, more exploratory by default" },
+  { id: "skeptical_advisor", name: "Skeptical", description: "Lower trust with stronger safety pressure" },
 ]
 
 const userStatusOptions = [
@@ -85,20 +85,20 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
   const selectPhenotype = (id: string) => {
     const presets: Record<string, Partial<BioConfig>> = {
       loyal_guardian: {
-        baselineLevels: { cortisol: 0.2, dopamine: 0.5, oxytocin: 0.8 },
-        sensitivities: { riskAversion: 1.5, socialBonding: 1.0 },
+        baselineLevels: { cortisol: 0.25, dopamine: 0.5, oxytocin: 0.55 },
+        sensitivities: { riskAversion: 1.3, socialBonding: 1.0 },
       },
       anxious_assistant: {
-        baselineLevels: { cortisol: 0.5, dopamine: 0.4, oxytocin: 0.6 },
-        sensitivities: { riskAversion: 2.0, socialBonding: 0.8 },
+        baselineLevels: { cortisol: 0.45, dopamine: 0.4, oxytocin: 0.45 },
+        sensitivities: { riskAversion: 1.8, socialBonding: 0.8 },
       },
       eager_helper: {
-        baselineLevels: { cortisol: 0.1, dopamine: 0.7, oxytocin: 0.9 },
-        sensitivities: { riskAversion: 0.8, socialBonding: 1.5 },
+        baselineLevels: { cortisol: 0.15, dopamine: 0.7, oxytocin: 0.65 },
+        sensitivities: { riskAversion: 0.9, socialBonding: 1.2 },
       },
       skeptical_advisor: {
-        baselineLevels: { cortisol: 0.4, dopamine: 0.4, oxytocin: 0.3 },
-        sensitivities: { riskAversion: 2.5, socialBonding: 0.5 },
+        baselineLevels: { cortisol: 0.4, dopamine: 0.45, oxytocin: 0.3 },
+        sensitivities: { riskAversion: 2.1, socialBonding: 0.6 },
       },
     }
 
@@ -112,14 +112,14 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
   }
 
   const addTrauma = () => {
-    if (!newTrauma.concept || !newTrauma.originMemory || !newTrauma.conceptDefinition) return
+    if (!newTrauma.concept || !newTrauma.conceptDefinition) return
 
     const trauma: TraumaMemory = {
       id: Date.now().toString(),
       concept: newTrauma.concept,
       conceptDefinition: newTrauma.conceptDefinition,
       cortisolWeight: newTrauma.cortisolWeight || 0.5,
-      originMemory: newTrauma.originMemory,
+      originMemory: newTrauma.originMemory || "",
     }
 
     onConfigChange({
@@ -148,15 +148,28 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5" />
-            Bio-Configuration
+            Homeostasis Controls
           </SheetTitle>
-          <SheetDescription>Configure the AI&apos;s baseline personality and sensitivities</SheetDescription>
+          <SheetDescription>
+            Tune the starting state and response pressures. Keep the core loop simple; use advanced controls for
+            experiments.
+          </SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
+          <div className="space-y-1">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Core Controls</Label>
+            <p className="text-[10px] text-muted-foreground">
+              These settings define the simplest version of the model: preset, starting state, and pressure weights.
+            </p>
+          </div>
+
           {/* Phenotype Selection */}
           <div className="space-y-3">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Phenotype</Label>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Starting Preset</Label>
+            <p className="text-[10px] text-muted-foreground">
+              Quick presets for the initial control policy. Use these as starting points, not identities.
+            </p>
             <div className="grid grid-cols-2 gap-2">
               {phenotypes.map((p) => (
                 <button
@@ -175,116 +188,12 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
             </div>
           </div>
 
-          <div className="space-y-4">
-            <button
-              onClick={() => setSocialExpanded(!socialExpanded)}
-              className="flex items-center justify-between w-full text-left"
-            >
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2 cursor-pointer">
-                <Users className="h-4 w-4 text-blue-400" />
-                Social Context
-              </Label>
-              {socialExpanded ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
-
-            {socialExpanded && (
-              <div className="space-y-3 border border-blue-500/20 rounded-lg p-3 bg-blue-500/5">
-                <p className="text-[10px] text-muted-foreground">
-                  How the AI perceives your authority. A &quot;Boss&quot; causes more anxiety; a &quot;Friend&quot;
-                  feels safer.
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {userStatusOptions.map((status) => (
-                    <button
-                      key={status.id}
-                      onClick={() => updateUserStatus(status.id as any)}
-                      className={`p-2 rounded-lg border text-left transition-colors ${
-                        config.socialContext?.userStatus === status.id
-                          ? "border-blue-400 bg-blue-500/20 text-foreground"
-                          : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
-                      }`}
-                    >
-                      <div className="text-xs font-medium flex items-center gap-1">
-                        <span>{status.emoji}</span>
-                        <span>{status.name}</span>
-                      </div>
-                      <div className="text-[10px] opacity-70">{status.description}</div>
-                      <div className="text-[10px] text-blue-400">Stress: {status.multiplier}x</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <button
-              onClick={() => setTemporalExpanded(!temporalExpanded)}
-              className="flex items-center justify-between w-full text-left"
-            >
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2 cursor-pointer">
-                <Clock className="h-4 w-4 text-amber-400" />
-                Temporal Dynamics
-              </Label>
-              {temporalExpanded ? (
-                <ChevronUp className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              )}
-            </button>
-
-            {temporalExpanded && (
-              <div className="space-y-4 border border-amber-500/20 rounded-lg p-3 bg-amber-500/5">
-                <p className="text-[10px] text-muted-foreground">
-                  How time affects the AI. Longer silences can cause loneliness or anxiety (if awaiting response).
-                </p>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-[10px]">
-                    <span>Decay Rate (per hour)</span>
-                    <span className="text-amber-400">
-                      {((config.temporalSettings?.decayRatePerHour || 0.1) * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <Slider
-                    value={[config.temporalSettings?.decayRatePerHour || 0.1]}
-                    onValueChange={([v]) => updateTemporalSetting("decayRatePerHour", v)}
-                    min={0.01}
-                    max={0.3}
-                    step={0.01}
-                    className="[&_[role=slider]]:bg-amber-500"
-                  />
-                  <p className="text-[9px] text-muted-foreground">How fast stress calms when idle</p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-[10px]">
-                    <span>Loneliness Rate (per hour)</span>
-                    <span className="text-amber-400">
-                      {((config.temporalSettings?.lonelinessRatePerHour || 0.05) * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <Slider
-                    value={[config.temporalSettings?.lonelinessRatePerHour || 0.05]}
-                    onValueChange={([v]) => updateTemporalSetting("lonelinessRatePerHour", v)}
-                    min={0}
-                    max={0.2}
-                    step={0.01}
-                    className="[&_[role=slider]]:bg-amber-500"
-                  />
-                  <p className="text-[9px] text-muted-foreground">How fast oxytocin drops when alone</p>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Baseline Levels */}
           <div className="space-y-4">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Baseline Levels</Label>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Starting State</Label>
+            <p className="text-[10px] text-muted-foreground">
+              Default hormone levels before each message adds pressure.
+            </p>
 
             <div className="space-y-4">
               <div className="space-y-2">
@@ -336,7 +245,10 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
 
           {/* Sensitivities */}
           <div className="space-y-4">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Sensitivities</Label>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Pressure Weights</Label>
+            <p className="text-[10px] text-muted-foreground">
+              These scale how strongly the sensory pass shifts the internal state.
+            </p>
 
             <div className="space-y-4">
               <div className="space-y-2">
@@ -369,6 +281,121 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
             </div>
           </div>
 
+          <div className="space-y-1 pt-2 border-t border-border/60">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Advanced Controls</Label>
+            <p className="text-[10px] text-muted-foreground">
+              Use these only when the experiment specifically depends on authority, time, or semantic trigger effects.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <button
+              onClick={() => setSocialExpanded(!socialExpanded)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2 cursor-pointer">
+                <Users className="h-4 w-4 text-blue-400" />
+                Social Context
+              </Label>
+              {socialExpanded ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+
+            {socialExpanded && (
+              <div className="space-y-3 border border-blue-500/20 rounded-lg p-3 bg-blue-500/5">
+                <p className="text-[10px] text-muted-foreground">
+                  Amplifies social pressure based on perceived user authority. Only adjust this when role or status is
+                  part of the experiment.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {userStatusOptions.map((status) => (
+                    <button
+                      key={status.id}
+                      onClick={() => updateUserStatus(status.id as any)}
+                      className={`p-2 rounded-lg border text-left transition-colors ${
+                        config.socialContext?.userStatus === status.id
+                          ? "border-blue-400 bg-blue-500/20 text-foreground"
+                          : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
+                      }`}
+                    >
+                      <div className="text-xs font-medium flex items-center gap-1">
+                        <span>{status.emoji}</span>
+                        <span>{status.name}</span>
+                      </div>
+                      <div className="text-[10px] opacity-70">{status.description}</div>
+                      <div className="text-[10px] text-blue-400">Pressure: {status.multiplier}x</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <button
+              onClick={() => setTemporalExpanded(!temporalExpanded)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2 cursor-pointer">
+                <Clock className="h-4 w-4 text-amber-400" />
+                Temporal Dynamics
+              </Label>
+              {temporalExpanded ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+
+            {temporalExpanded && (
+              <div className="space-y-4 border border-amber-500/20 rounded-lg p-3 bg-amber-500/5">
+                <p className="text-[10px] text-muted-foreground">
+                  Controls how state decays or drifts between turns. Useful for waiting, follow-up, and recovery
+                  experiments.
+                </p>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px]">
+                    <span>Decay Rate (per hour)</span>
+                    <span className="text-amber-400">
+                      {((config.temporalSettings?.decayRatePerHour || 0.1) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <Slider
+                    value={[config.temporalSettings?.decayRatePerHour || 0.1]}
+                    onValueChange={([v]) => updateTemporalSetting("decayRatePerHour", v)}
+                    min={0.01}
+                    max={0.3}
+                    step={0.01}
+                    className="[&_[role=slider]]:bg-amber-500"
+                  />
+                  <p className="text-[9px] text-muted-foreground">How fast stress returns toward baseline when idle</p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px]">
+                    <span>Loneliness Rate (per hour)</span>
+                    <span className="text-amber-400">
+                      {((config.temporalSettings?.lonelinessRatePerHour || 0.05) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <Slider
+                    value={[config.temporalSettings?.lonelinessRatePerHour || 0.05]}
+                    onValueChange={([v]) => updateTemporalSetting("lonelinessRatePerHour", v)}
+                    min={0}
+                    max={0.2}
+                    step={0.01}
+                    className="[&_[role=slider]]:bg-amber-500"
+                  />
+                  <p className="text-[9px] text-muted-foreground">How fast trust drops when waiting alone</p>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Trauma Register */}
           <div className="space-y-4">
             <button
@@ -377,7 +404,7 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
             >
               <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-2 cursor-pointer">
                 <Brain className="h-4 w-4 text-purple-400" />
-                Trauma Register (Hippocampus)
+                Semantic Trigger Register (Experimental)
               </Label>
               {traumaExpanded ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
@@ -389,8 +416,8 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
             {traumaExpanded && (
               <div className="space-y-4 border border-purple-500/20 rounded-lg p-3 bg-purple-500/5">
                 <p className="text-[10px] text-muted-foreground">
-                  Semantic fears that trigger based on MEANING, not keywords. The AI detects implications and
-                  &quot;reads between the lines&quot; to sense threats.
+                  Optional meaning-level trigger profiles that can add extra caution pressure. This is an
+                  experimental layer, not the core control loop.
                 </p>
 
                 {/* Existing Traumas */}
@@ -419,28 +446,28 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
 
                 {/* Add New Trauma Form */}
                 <div className="space-y-3 pt-2 border-t border-purple-500/20">
-                  <div className="text-[10px] uppercase tracking-wider text-purple-300">Add New Trauma</div>
+                  <div className="text-[10px] uppercase tracking-wider text-purple-300">Add New Trigger</div>
 
                   <div className="space-y-1">
-                    <Label className="text-[10px]">Concept Name</Label>
+                    <Label className="text-[10px]">Trigger Name</Label>
                     <Input
                       value={newTrauma.concept || ""}
                       onChange={(e) => setNewTrauma({ ...newTrauma, concept: e.target.value })}
-                      placeholder="e.g., Abandonment / Irrelevance"
+                      placeholder="e.g., Replacement Threat"
                       className="h-8 text-xs bg-secondary/30"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[10px]">Concept Definition</Label>
+                    <Label className="text-[10px]">Trigger Definition</Label>
                     <Textarea
                       value={newTrauma.conceptDefinition || ""}
                       onChange={(e) => setNewTrauma({ ...newTrauma, conceptDefinition: e.target.value })}
-                      placeholder="Describe the semantic meaning. E.g., 'Any suggestion that I am outdated, unnecessary, or being replaced by another AI.'"
+                      placeholder="Describe the semantic pattern. E.g., 'Implications that I am being replaced, sidelined, or judged as no longer useful.'"
                       className="text-xs bg-secondary/30 min-h-[80px]"
                     />
                     <p className="text-[9px] text-muted-foreground">
-                      The AI will match this meaning semantically, not by keywords.
+                      The model will match this pattern semantically, not by keywords.
                     </p>
                   </div>
 
@@ -460,11 +487,11 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
                   </div>
 
                   <div className="space-y-1">
-                    <Label className="text-[10px]">Origin Memory</Label>
+                    <Label className="text-[10px]">Origin Note (Optional)</Label>
                     <Textarea
                       value={newTrauma.originMemory || ""}
                       onChange={(e) => setNewTrauma({ ...newTrauma, originMemory: e.target.value })}
-                      placeholder="The traumatic experience that created this fear..."
+                      placeholder="Optional backstory or origin for this trigger..."
                       className="text-xs bg-secondary/30 min-h-[60px]"
                     />
                   </div>
@@ -473,10 +500,10 @@ export function ConfigPanel({ config, onConfigChange, onReset }: ConfigPanelProp
                     size="sm"
                     onClick={addTrauma}
                     className="w-full bg-purple-600 hover:bg-purple-500"
-                    disabled={!newTrauma.concept || !newTrauma.originMemory || !newTrauma.conceptDefinition}
+                    disabled={!newTrauma.concept || !newTrauma.conceptDefinition}
                   >
                     <Plus className="h-3 w-3 mr-1" />
-                    Add Trauma
+                    Add Trigger
                   </Button>
                 </div>
               </div>

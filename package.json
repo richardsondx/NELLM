@@ -5,10 +5,19 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
+    "eval": "promptfoo eval -c promptfooconfig.yaml -o eval/regression-results.json",
+    "eval:ci": "promptfoo eval -c promptfooconfig.yaml --no-progress-bar -o eval/regression-results.json",
+    "eval:benchmark": "promptfoo eval -c promptfooconfig.decisions.yaml -o eval/comprehensive-results.json",
+    "eval:benchmark:full": "promptfoo eval -c promptfooconfig.decisions.yaml -o eval/comprehensive-results.json",
+    "eval:benchmark:ci": "promptfoo eval -c promptfooconfig.decisions.yaml --no-progress-bar -o eval/comprehensive-results.json",
+    "eval:merge:jut": "node eval/merge-benchmark-results.mjs",
+    "eval:trauma": "promptfoo eval -c promptfooconfig.trauma.yaml -o eval/comprehensive-results.json",
+    "eval:trauma:ci": "promptfoo eval -c promptfooconfig.trauma.yaml --no-progress-bar -o eval/comprehensive-results.json",
     "lint": "eslint .",
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.48",
     "@ai-sdk/react": "2.0.109",
     "@emotion/is-prop-valid": "latest",
     "@hookform/resolvers": "^3.10.0",
@@ -70,6 +79,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8.5",
+    "promptfoo": "^0.120.19",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
     "typescript": "^5"

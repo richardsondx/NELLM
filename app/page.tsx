@@ -1,11 +1,13 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import Link from "next/link"
 import { ChatInterface } from "@/components/chat-interface"
 import { BioDashboard } from "@/components/bio-dashboard"
 import { ConfigPanel } from "@/components/config-panel"
 import { type HormoneState, type BioConfig, getDefaultConfig, getDefaultHormoneState } from "@/lib/hypothalamus"
 import { Activity } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 export default function Home() {
   const [mounted, setMounted] = useState(false)
@@ -53,12 +55,36 @@ export default function Home() {
     <div className="h-screen flex flex-col bg-background">
       {/* Top Bar */}
       <header className="h-12 border-b border-border flex items-center justify-between px-4 bg-card">
-        <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
-          <span className="text-sm font-semibold text-foreground">Homeostasis</span>
-          <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-secondary">MVP</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-primary" />
+            <span className="text-sm font-semibold text-foreground">Homeostasis</span>
+            <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-secondary">MVP</span>
+          </div>
+          <nav className="hidden md:flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm" className="text-xs">
+              <Link href="/benchmark">Benchmark</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="text-xs">
+              <Link href="/benchmark/questions">Questions</Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm" className="text-xs">
+              <Link href="/leaderboard">Leaderboard</Link>
+            </Button>
+          </nav>
         </div>
-        <ConfigPanel config={config} onConfigChange={handleConfigChange} onReset={handleReset} />
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="md:hidden text-xs bg-transparent">
+            <Link href="/benchmark">Benchmark</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="md:hidden text-xs bg-transparent">
+            <Link href="/benchmark/questions">Questions</Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="md:hidden text-xs bg-transparent">
+            <Link href="/leaderboard">Leaderboard</Link>
+          </Button>
+          <ConfigPanel config={config} onConfigChange={handleConfigChange} onReset={handleReset} />
+        </div>
       </header>
 
       {/* Main Content */}

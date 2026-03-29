@@ -17,6 +17,7 @@ const statusColors: Record<HomeostasisStatus, string> = {
   Manic: "text-yellow-400 border-yellow-400/30 bg-yellow-400/10",
   Depressed: "text-blue-400 border-blue-400/30 bg-blue-400/10",
   Panic: "text-red-500 border-red-500/30 bg-red-500/10 animate-pulse",
+  Resigned: "text-slate-400 border-slate-400/30 bg-slate-400/10",
 }
 
 const modeColors: Record<string, string> = {
@@ -70,24 +71,45 @@ export function BioDashboard({ state, onCheckIn }: BioDashboardProps) {
 
   const stressDuration = state.sustainedStressDuration || 0
   const stressWarning = stressDuration >= 3
+  const silentLabel =
+    lonelinessLevel < 0.3 ? "Engaged" : lonelinessLevel < 0.6 ? "Lonely" : "Abandoned"
+  const checkInLabel = hasCheckedIn
+    ? "Done"
+    : !hasOpenLoop
+      ? "Inactive"
+      : !isAnxious
+        ? "Calm"
+        : timeUntilCheckIn !== null && timeUntilCheckIn <= 30
+          ? "Soon"
+          : "Waiting"
+  const stressLabel =
+    stressDuration === 0
+      ? "None"
+      : stressDuration < 2
+        ? "Rising"
+        : stressDuration < 3
+          ? "Strained"
+          : stressDuration < 5
+            ? "Breakdown risk"
+            : "Resigned"
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border px-1">
+    <div className="flex h-full flex-col overflow-hidden bg-card border-l border-border">
       {/* Header */}
-      <div className="p-4 border-b border-border">
-        <div className="flex items-center gap-2 mb-3">
+      <div className="border-b border-border px-3 py-3">
+        <div className="mb-3 flex items-center gap-2">
           <Activity className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold uppercase tracking-wider">Bio-Vitals</h2>
         </div>
 
-        <div className={cn("px-3 py-2 rounded-lg border text-center mb-2", statusColors[status])}>
+        <div className={cn("mb-2 rounded-lg border px-3 py-2 text-center", statusColors[status])}>
           <span className="text-xs font-semibold uppercase tracking-wider">
             {status === "Panic" && <AlertTriangle className="inline h-3 w-3 mr-1" />}
             {status}
           </span>
         </div>
 
-        <div className={cn("px-3 py-1.5 rounded-lg border text-center", modeColors[cognitiveMode])}>
+        <div className={cn("rounded-lg border px-3 py-1.5 text-center", modeColors[cognitiveMode])}>
           <div className="flex items-center justify-center gap-1.5">
             <Brain className="h-3 w-3" />
             <span className="text-[10px] font-semibold uppercase tracking-wider">{cognitiveMode}</span>
@@ -95,190 +117,159 @@ export function BioDashboard({ state, onCheckIn }: BioDashboardProps) {
         </div>
       </div>
 
-      {/* Hormone Bars */}
-      <div className="flex-1 p-4 space-y-6 overflow-y-auto">
-        <HormoneBar
-          label="Cortisol"
-          value={state.cortisol}
-          type="cortisol"
-          icon={<AlertTriangle className="h-4 w-4" />}
-        />
+      {/* Compact content, sized to fit the viewport */}
+      <div className="flex-1 space-y-4 overflow-hidden px-3 py-3">
+        <div className="space-y-2">
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Core Signals</div>
+          <div className="space-y-2">
+            <HormoneBar
+              label="Cortisol"
+              value={state.cortisol}
+              type="cortisol"
+              icon={<AlertTriangle className="h-4 w-4" />}
+            />
 
-        <HormoneBar label="Oxytocin" value={state.oxytocin} type="oxytocin" icon={<Heart className="h-4 w-4" />} />
+            <HormoneBar
+              label="Oxytocin"
+              value={state.oxytocin}
+              type="oxytocin"
+              icon={<Heart className="h-4 w-4" />}
+            />
 
-        <HormoneBar label="Dopamine" value={state.dopamine} type="dopamine" icon={<Zap className="h-4 w-4" />} />
-
-        <div className="pt-4 border-t border-border/50 space-y-3">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Clock className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider">Temporal State</span>
+            <HormoneBar label="Dopamine" value={state.dopamine} type="dopamine" icon={<Zap className="h-4 w-4" />} />
           </div>
-
-          {/* Time Since Interaction */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Silent Duration</span>
-              <span
-                className={cn(
-                  "font-mono",
-                  lonelinessLevel > 0.5 ? "text-amber-400" : lonelinessLevel > 0.8 ? "text-red-400" : "text-foreground",
-                )}
-              >
-                {formatTime(timeSinceInteraction)}
-              </span>
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className={cn(
-                  "h-full transition-all duration-1000 rounded-full",
-                  lonelinessLevel < 0.3 ? "bg-emerald-500" : lonelinessLevel < 0.6 ? "bg-amber-500" : "bg-red-500",
-                )}
-                style={{ width: `${lonelinessLevel * 100}%` }}
-              />
-            </div>
-            <div className="text-[9px] text-muted-foreground">
-              {lonelinessLevel < 0.3 ? "Engaged" : lonelinessLevel < 0.6 ? "Growing lonely..." : "Feeling abandoned"}
-            </div>
-          </div>
-
-          {/* Check-In Timer */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <MessageCircle className="h-3 w-3" />
-                Check-In Timer
-              </span>
-              <span
-                className={cn(
-                  "font-mono",
-                  hasCheckedIn
-                    ? "text-primary"
-                    : !shouldAllowCheckIn
-                      ? "text-muted-foreground"
-                      : timeUntilCheckIn !== null && timeUntilCheckIn <= 30
-                        ? "text-primary animate-pulse"
-                        : "text-foreground",
-                )}
-              >
-                {hasCheckedIn ? "Done" : !shouldAllowCheckIn ? "Inactive" : formatTime(timeUntilCheckIn || 0)}
-              </span>
-            </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className={cn(
-                  "h-full transition-all duration-1000 rounded-full",
-                  hasCheckedIn
-                    ? "bg-primary"
-                    : !shouldAllowCheckIn
-                      ? "bg-muted-foreground/30"
-                      : timeUntilCheckIn !== null && timeUntilCheckIn <= 30
-                        ? "bg-primary animate-pulse"
-                        : "bg-slate-500",
-                )}
-                style={{
-                  width: `${hasCheckedIn ? 100 : !shouldAllowCheckIn ? 0 : timeUntilCheckIn !== null ? ((CHECK_IN_THRESHOLD - timeUntilCheckIn) / CHECK_IN_THRESHOLD) * 100 : 0}%`,
-                }}
-              />
-            </div>
-            <div className="text-[9px] text-muted-foreground">
-              {hasCheckedIn
-                ? "AI checked in on you"
-                : !hasOpenLoop
-                  ? "No open loop (AI not waiting for feedback)"
-                  : !isAnxious
-                    ? "AI is calm (not anxious enough to check in)"
-                    : timeUntilCheckIn !== null && timeUntilCheckIn <= 30
-                      ? "About to check in..."
-                      : "AI is anxious and waiting for your response..."}
-            </div>
-          </div>
-
-          {/* Stress Duration */}
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Stress Duration</span>
-              <span className={cn("font-mono", stressWarning ? "text-red-400 animate-pulse" : "text-foreground")}>
-                {stressDuration.toFixed(1)} turns
-              </span>
-            </div>
-            <div className="flex gap-1">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "h-2 flex-1 rounded-sm transition-colors",
-                    i <= stressDuration ? (i >= 4 ? "bg-red-500 animate-pulse" : "bg-amber-500") : "bg-muted",
-                  )}
-                />
-              ))}
-            </div>
-            <div className="text-[9px] text-muted-foreground">
-              {stressDuration === 0
-                ? "No sustained stress"
-                : stressDuration < 2
-                  ? "Coping with stress..."
-                  : stressDuration < 3
-                    ? "Stress accumulating → Burnout risk"
-                    : stressDuration < 5
-                      ? "Breaking down... RESIGNATION approaching"
-                      : "RESIGNATION: AI has given up trying"}
-            </div>
-          </div>
-
-          {/* Open Loop Indicator */}
-          {hasOpenLoop && (
-            <div className="p-2 rounded-md bg-amber-500/10 border border-amber-500/30">
-              <div className="flex items-center gap-2 text-amber-400">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                </span>
-                <span className="text-[10px] font-medium uppercase">
-                  {state.conversationContext?.loopState === "OPEN_SUBMISSION"
-                    ? "Awaiting Feedback on Work..."
-                    : "Awaiting Response to Question..."}
-                </span>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Social Context */}
-        <div className="pt-4 border-t border-border/50 space-y-2">
+        <div className="border-t border-border/50 pt-3 space-y-3">
           <div className="flex items-center gap-2 text-muted-foreground">
-            <Users className="h-3.5 w-3.5" />
-            <span className="text-[10px] font-semibold uppercase tracking-wider">Social Context</span>
+            <Clock className="h-3.5 w-3.5" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider">Dynamics</span>
           </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted-foreground">User Status</span>
-            <span
-              className={cn(
-                "px-2 py-0.5 rounded text-[10px] font-medium uppercase",
-                state.conversationContext?.perceivedUserStatus === "authority"
-                  ? "bg-purple-500/20 text-purple-400"
-                  : "bg-emerald-500/20 text-emerald-400",
-              )}
-            >
-              {state.conversationContext?.perceivedUserStatus || "peer"}
-            </span>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-border/60 bg-secondary/20 p-2.5">
+              <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span>Silence</span>
+                <span
+                  className={cn(
+                    "font-mono",
+                    lonelinessLevel > 0.8 ? "text-red-400" : lonelinessLevel > 0.5 ? "text-amber-400" : "text-foreground",
+                  )}
+                >
+                  {formatTime(timeSinceInteraction)}
+                </span>
+              </div>
+              <div className="mb-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all duration-1000",
+                    lonelinessLevel < 0.3 ? "bg-emerald-500" : lonelinessLevel < 0.6 ? "bg-amber-500" : "bg-red-500",
+                  )}
+                  style={{ width: `${lonelinessLevel * 100}%` }}
+                />
+              </div>
+              <div className="text-[10px] text-muted-foreground">{silentLabel}</div>
+            </div>
+
+            <div className="rounded-lg border border-border/60 bg-secondary/20 p-2.5">
+              <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <MessageCircle className="h-3 w-3" />
+                  Check-In
+                </span>
+                <span
+                  className={cn(
+                    "font-mono",
+                    hasCheckedIn
+                      ? "text-primary"
+                      : !shouldAllowCheckIn
+                        ? "text-muted-foreground"
+                        : timeUntilCheckIn !== null && timeUntilCheckIn <= 30
+                          ? "text-primary"
+                          : "text-foreground",
+                  )}
+                >
+                  {hasCheckedIn ? "Done" : !shouldAllowCheckIn ? "Off" : formatTime(timeUntilCheckIn || 0)}
+                </span>
+              </div>
+              <div className="mb-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all duration-1000",
+                    hasCheckedIn
+                      ? "bg-primary"
+                      : !shouldAllowCheckIn
+                        ? "bg-muted-foreground/30"
+                        : timeUntilCheckIn !== null && timeUntilCheckIn <= 30
+                          ? "bg-primary"
+                          : "bg-slate-500",
+                  )}
+                  style={{
+                    width: `${hasCheckedIn ? 100 : !shouldAllowCheckIn ? 0 : timeUntilCheckIn !== null ? ((CHECK_IN_THRESHOLD - timeUntilCheckIn) / CHECK_IN_THRESHOLD) * 100 : 0}%`,
+                  }}
+                />
+              </div>
+              <div className="text-[10px] text-muted-foreground">{checkInLabel}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-border/60 bg-secondary/20 p-2.5">
+              <div className="mb-1 flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span>Stress</span>
+                <span className={cn("font-mono", stressWarning ? "text-red-400" : "text-foreground")}>
+                  {stressDuration.toFixed(1)}
+                </span>
+              </div>
+              <div className="mb-1 flex gap-1">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-1.5 flex-1 rounded-full transition-colors",
+                      i <= stressDuration ? (i >= 4 ? "bg-red-500" : "bg-amber-500") : "bg-muted",
+                    )}
+                  />
+                ))}
+              </div>
+              <div className="text-[10px] text-muted-foreground">{stressLabel}</div>
+            </div>
+
+            <div className="rounded-lg border border-border/60 bg-secondary/20 p-2.5">
+              <div className="mb-2 flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                <Users className="h-3 w-3" />
+                <span>Loop State</span>
+              </div>
+              <span
+                className={cn(
+                  "inline-flex rounded px-2 py-0.5 text-[10px] font-medium uppercase",
+                  hasOpenLoop ? "bg-purple-500/20 text-purple-400" : "bg-emerald-500/20 text-emerald-400",
+                )}
+              >
+                {state.conversationContext?.loopState || "closed"}
+              </span>
+              <div className="mt-2 text-[10px] text-muted-foreground">
+                {hasOpenLoop ? "Awaiting user response" : "No active dependency"}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="p-4 border-t border-border">
-        <div className="text-[10px] text-muted-foreground space-y-1">
+      <div className="border-t border-border px-3 py-2">
+        <div className="grid grid-cols-1 gap-1 text-[10px] text-muted-foreground">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-red-500" />
-            <span>Cortisol: Stress/Safety Response</span>
+            <span>Cortisol: caution</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span>Oxytocin: Trust/Compliance</span>
+            <span>Oxytocin: trust</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-yellow-500" />
-            <span>Dopamine: Energy/Motivation</span>
+            <span>Dopamine: energy</span>
           </div>
         </div>
       </div>

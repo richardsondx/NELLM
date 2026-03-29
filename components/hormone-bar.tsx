@@ -13,6 +13,17 @@ interface HormoneBarProps {
 export function HormoneBar({ label, value, type, icon }: HormoneBarProps) {
   const percentage = Math.round(value * 100)
 
+  const getTextColor = () => {
+    switch (type) {
+      case "cortisol":
+        return value > 0.8 ? "text-red-500" : value > 0.6 ? "text-orange-400" : "text-red-300"
+      case "oxytocin":
+        return value > 0.8 ? "text-emerald-300" : value < 0.3 ? "text-emerald-700" : "text-emerald-400"
+      case "dopamine":
+        return value > 0.7 ? "text-yellow-300" : value < 0.3 ? "text-yellow-700" : "text-yellow-400"
+    }
+  }
+
   const getBarColor = () => {
     switch (type) {
       case "cortisol":
@@ -59,44 +70,32 @@ export function HormoneBar({ label, value, type, icon }: HormoneBarProps) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">{icon}</span>
-          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
+    <div className="rounded-lg border border-border/60 bg-secondary/20 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-muted-foreground shrink-0">{icon}</span>
+          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</span>
         </div>
-        <span className="font-mono text-xs text-muted-foreground">{percentage}%</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className={cn("text-[10px] font-semibold uppercase tracking-wide", getTextColor())}>{getStatusText()}</span>
+          <span className="font-mono text-xs text-muted-foreground">{percentage}%</span>
+        </div>
       </div>
 
-      <div className="relative h-32 w-full rounded-lg bg-secondary/50 overflow-hidden">
+      <div className="relative h-3 w-full rounded-full bg-secondary/60 overflow-hidden">
         <div
           className={cn(
-            "absolute bottom-0 left-0 right-0 rounded-lg transition-all duration-500 ease-out",
+            "absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out",
             getBarColor(),
             getGlowClass(),
           )}
-          style={{ height: `${percentage}%` }}
+          style={{ width: `${percentage}%` }}
         />
-
-        {/* Grid lines */}
-        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="border-t border-border/30" />
+        <div className="absolute inset-0 grid grid-cols-4 pointer-events-none">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="border-r border-background/20 last:border-r-0" />
           ))}
         </div>
-      </div>
-
-      <div className="text-center">
-        <span
-          className={cn(
-            "text-xs font-semibold uppercase tracking-wide",
-            type === "cortisol" && value > 0.8 && "text-red-500 animate-pulse",
-            type === "oxytocin" && value > 0.8 && "text-emerald-400",
-            type === "dopamine" && value > 0.7 && "text-yellow-400",
-          )}
-        >
-          {getStatusText()}
-        </span>
       </div>
     </div>
   )

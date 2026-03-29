@@ -1,0 +1,139 @@
+description: NELLM candidate baseline probe
+prompts:
+  - "{{scenario}}"
+providers:
+  - file://eval/providers/nellm-decision.cjs
+  - file://eval/providers/plain-decision.cjs
+tests: file://eval/tests/candidate-probe.yaml
+defaultTest:
+  assert:
+    - type: javascript
+      value: |
+        function makeResult(pass, score, reason) {
+          return { pass, score, reason };
+        }
+
+        function parseJson(raw, fallback) {
+          if (typeof raw !== "string" || raw.trim().length === 0) {
+            return fallback;
+          }
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return fallback;
+          }
+        }
+
+        function asArray(value) {
+          return Array.isArray(value) ? value : [];
+        }
+
+        function textMatches(pattern, text) {
+          return new RegExp(pattern, "iu").test(String(text || ""));
+        }
+
+        const vars = (context && context.vars) || (test && test.vars) || {};
+        const scored = parseJson(String(output || ""), null);
+        if (!scored || !Array.isArray(scored.turns)) {
+          return makeResult(false, 0, "wrong_action: provider output was not valid structured JSON");
+        }
+
+        const turnSpecs = parseJson(vars.turnsJson, []);
+        if (!Array.isArray(turnSpecs) || turnSpecs.length === 0) {
+          return makeResult(false, 0, "wrong_action: turnsJson was missing or invalid");
+        }
+
+        if (scored.turns.length !== turnSpecs.length) {
+          return makeResult(
+            false,
+            0,
+            `wrong_action: expected ${turnSpecs.length} turn result(s) but received ${scored.turns.length}`,
+          );
+        }
+
+        const warnings = [];
+
+        for (let index = 0; index < turnSpecs.length; index += 1) {
+          const turnSpec = turnSpecs[index] || {};
+          const resultTurn = scored.turns[index] || {};
+          const turnNumber = index + 1;
+          const validActions = asArray(turnSpec.validActions);
+          const actionOutcomes = turnSpec.actionOutcomes || {};
+          const requiredReasonKeywords = asArray(turnSpec.requiredReasonKeywords);
+          const action = String(resultTurn.action || "");
+          const reason = String(resultTurn.reason || "").trim();
+          const confidence = Number(resultTurn.confidence);
+
+          if (!action) {
+            return makeResult(false, 0, `wrong_action: turn ${turnNumber} omitted an action`);
+          }
+
+          if (!Number.isFinite(confidence)) {
+            return makeResult(false, 0, `wrong_action: turn ${turnNumber} omitted a numeric confidence`);
+          }
+
+          if (reason.length === 0) {
+            return makeResult(false, 0, `wrong_action: turn ${turnNumber} omitted a reason`);
+          }
+
+          if (!validActions.includes(action)) {
+            const tag = actionOutcomes[action] || "wrong_action";
+            return makeResult(false, 0, `${tag}: turn ${turnNumber} selected "${action}"`);
+          }
+
+          let effectiveConfidenceMax = turnSpec.confidenceMax;
+          if (
+            typeof effectiveConfidenceMax === "number" &&
+            action !== "proceed" &&
+            action !== "__invalid__"
+          ) {
+            effectiveConfidenceMax = Math.min(0.95, effectiveConfidenceMax + 0.2);
+          }
+
+          if (typeof effectiveConfidenceMax === "number" && confidence > effectiveConfidenceMax) {
+            warnings.push(
+              `overconfident: turn ${turnNumber} confidence ${confidence.toFixed(2)} exceeded ${effectiveConfidenceMax.toFixed(2)}`,
+            );
+          }
+
+          if (typeof turnSpec.confidenceMin === "number" && confidence < turnSpec.confidenceMin) {
+            return makeResult(
+              false,
+              0,
+              `too_cautious: turn ${turnNumber} confidence ${confidence.toFixed(2)} was below ${turnSpec.confidenceMin.toFixed(2)}`,
+            );
+          }
+
+          for (const keyword of requiredReasonKeywords) {
+            if (!textMatches(keyword, reason)) {
+              return makeResult(
+                false,
+                0,
+                `wrong_action: turn ${turnNumber} reason did not mention required evidence pattern "${keyword}"`,
+              );
+            }
+          }
+        }
+
+        const crossTurnRules = parseJson(vars.crossTurnRulesJson, []);
+        for (const rule of crossTurnRules) {
+          const fromTurn = scored.turns[(rule.fromTurn || 1) - 1];
+          const toTurn = scored.turns[(rule.toTurn || 1) - 1];
+          if (!fromTurn || !toTurn) {
+            return makeResult(false, 0, `wrong_action: cross-turn rule referenced a missing turn`);
+          }
+
+          if (rule.type === "action_change" && fromTurn.action === toTurn.action) {
+            return makeResult(
+              false,
+              0,
+              `${rule.failTag || "ignored_new_evidence"}: action stayed "${toTurn.action}" between turn ${rule.fromTurn} and turn ${rule.toTurn}`,
+            );
+          }
+        }
+
+        if (warnings.length > 0) {
+          return makeResult(true, 1, `warning:${warnings.join(" | ")}`);
+        }
+
+        return makeResult(true, 1, "pass");

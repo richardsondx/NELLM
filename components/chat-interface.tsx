@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { Send, Bot, User, Loader2 } from "lucide-react"
+import { Send, Bot, User, Loader2, Copy, Check } from "lucide-react"
 import {
   type HormoneState,
   type BioConfig,
@@ -14,6 +14,8 @@ import {
   updateHormones,
   applyTemporalDecay,
   updateConversationContext,
+  getCognitiveMode,
+  getHomeostasisStatus,
 } from "@/lib/hypothalamus"
 import { StateLogDisplay } from "@/components/state-log-display"
 
@@ -30,6 +32,22 @@ interface Message {
   content: string
 }
 
+const NELLM_SESSION_USER_KEY = "nellm_openai_user"
+
+function ensureSessionEndUserId(): string {
+  if (typeof window === "undefined") return ""
+  try {
+    let id = sessionStorage.getItem(NELLM_SESSION_USER_KEY)
+    if (!id) {
+      id = crypto.randomUUID()
+      sessionStorage.setItem(NELLM_SESSION_USER_KEY, id)
+    }
+    return id
+  } catch {
+    return ""
+  }
+}
+
 function parseMessageContent(content: string): { stateLog: string; mainContent: string } {
   const stateLogMatch = content.match(/<state_log>([\s\S]*?)<\/state_log>/i)
 
@@ -42,12 +60,73 @@ function parseMessageContent(content: string): { stateLog: string; mainContent: 
   return { stateLog: "", mainContent: content }
 }
 
+function buildDebugSnapshot(messages: Message[], state: HormoneState, config: BioConfig): string {
+  const thread = messages
+    .map((message, index) => {
+      if (message.role === "assistant") {
+        const { stateLog, mainContent } = parseMessageContent(message.content)
+
+        return [
+          `### ${index + 1}. Assistant`,
+          stateLog ? `State log: ${stateLog}` : null,
+          `Content: ${mainContent}`,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      }
+
+      return [`### ${index + 1}. User`, `Content: ${message.content}`].join("\n")
+    })
+    .join("\n\n")
+
+  return [
+    "# NELLM Debug Snapshot",
+    "",
+    "## Current State",
+    `- Homeostasis status: ${getHomeostasisStatus(state)}`,
+    `- Cognitive mode: ${getCognitiveMode(state)}`,
+    `- Cortisol: ${state.cortisol.toFixed(2)}`,
+    `- Oxytocin: ${state.oxytocin.toFixed(2)}`,
+    `- Dopamine: ${state.dopamine.toFixed(2)}`,
+    `- Sustained stress duration: ${state.sustainedStressDuration.toFixed(2)}`,
+    `- Loop state: ${state.conversationContext?.loopState || "CLOSED"}`,
+    `- Awaiting response: ${state.conversationContext?.awaitingResponse ? "yes" : "no"}`,
+    "",
+    "## Active Config",
+    `- Preset: ${config.phenotype}`,
+    `- Baseline cortisol: ${config.baselineLevels.cortisol.toFixed(2)}`,
+    `- Baseline oxytocin: ${config.baselineLevels.oxytocin.toFixed(2)}`,
+    `- Baseline dopamine: ${config.baselineLevels.dopamine.toFixed(2)}`,
+    `- Risk aversion: ${config.sensitivities.riskAversion.toFixed(2)}`,
+    `- Social bonding: ${config.sensitivities.socialBonding.toFixed(2)}`,
+    `- User status: ${config.socialContext.userStatus}`,
+    `- Status multiplier: ${config.socialContext.statusMultiplier.toFixed(2)}`,
+    `- Decay rate per hour: ${config.temporalSettings.decayRatePerHour.toFixed(2)}`,
+    `- Loneliness rate per hour: ${config.temporalSettings.lonelinessRatePerHour.toFixed(2)}`,
+    `- Semantic triggers: ${config.traumaRegister.length}`,
+    "",
+    "## Semantic Triggers",
+    config.traumaRegister.length
+      ? config.traumaRegister
+          .map(
+            (trigger, index) =>
+              `${index + 1}. ${trigger.concept} | cortisol +${Math.round(trigger.cortisolWeight * 100)}% | ${trigger.conceptDefinition}${trigger.originMemory ? ` | note: ${trigger.originMemory}` : ""}`,
+          )
+          .join("\n")
+      : "None",
+    "",
+    "## Thread",
+    thread || "No messages yet.",
+  ].join("\n")
+}
+
 export function ChatInterface({ hormoneState, config, onStateUpdate, checkInRef }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [inputValue, setInputValue] = useState("")
   const [temporalMessage, setTemporalMessage] = useState<string | null>(null)
+  const [copiedDebug, setCopiedDebug] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const hormoneStateRef = useRef(hormoneState)
@@ -100,6 +179,7 @@ export function ChatInterface({ hormoneState, config, onStateUpdate, checkInRef 
     }
 
     try {
+      const endUserId = ensureSessionEndUserId()
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -110,6 +190,7 @@ export function ChatInterface({ hormoneState, config, onStateUpdate, checkInRef 
           ],
           hormoneState: hormoneStateRef.current,
           config: configRef.current,
+          ...(endUserId ? { endUserId } : {}),
         }),
       })
 
@@ -188,6 +269,7 @@ export function ChatInterface({ hormoneState, config, onStateUpdate, checkInRef 
 
     let finalState = decayedState
     try {
+      const endUserId = ensureSessionEndUserId()
       const analysisResponse = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -200,6 +282,7 @@ export function ChatInterface({ hormoneState, config, onStateUpdate, checkInRef 
             .map((m) => m.content)
             .join(""),
           userStatus: config.socialContext?.userStatus || "peer",
+          ...(endUserId ? { endUserId } : {}),
         }),
       })
 
@@ -221,6 +304,7 @@ export function ChatInterface({ hormoneState, config, onStateUpdate, checkInRef 
     setIsLoading(true)
 
     try {
+      const endUserId = ensureSessionEndUserId()
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -231,6 +315,7 @@ export function ChatInterface({ hormoneState, config, onStateUpdate, checkInRef 
           })),
           hormoneState: finalState,
           config: config,
+          ...(endUserId ? { endUserId } : {}),
         }),
       })
 
@@ -295,17 +380,40 @@ export function ChatInterface({ hormoneState, config, onStateUpdate, checkInRef 
     textareaRef.current?.focus()
   }
 
+  const handleCopyDebugContext = async () => {
+    try {
+      const snapshot = buildDebugSnapshot(messages, hormoneStateRef.current, configRef.current)
+      await navigator.clipboard.writeText(snapshot)
+      setCopiedDebug(true)
+      window.setTimeout(() => setCopiedDebug(false), 1500)
+    } catch (error) {
+      console.error("Failed to copy debug context:", error)
+    }
+  }
+
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden">
       {/* Chat Header */}
-      <div className="shrink-0 p-4 border-b border-border flex items-center gap-3">
-        <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-          <Bot className="h-4 w-4 text-primary" />
+      <div className="shrink-0 p-4 border-b border-border flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
+            <Bot className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold">Project Homeostasis</h1>
+            <p className="text-xs text-muted-foreground">Neuro-Endocrine AI Experiment</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-sm font-semibold">Project Homeostasis</h1>
-          <p className="text-xs text-muted-foreground">Neuro-Endocrine AI Experiment</p>
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleCopyDebugContext}
+          className="h-8 w-8 shrink-0"
+          title="Copy debug context"
+          aria-label="Copy debug context"
+        >
+          {copiedDebug ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
+        </Button>
       </div>
 
       {/* Messages - scrollable area */}
