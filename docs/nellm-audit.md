@@ -189,9 +189,11 @@ Persistent memory should not be added until the non-persistent control loop show
 
 ## Eval Log
 
+This tracker is mainly about the compact `50`-case decision benchmark. Treat it separately from the `145`-test public benchmark history shown on `/benchmark` and `/leaderboard`.
+
 | Date | Change | Suite | NELLM Result | Base Result | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 2026-03-29 | Reframed public benchmark copy, mixed-turn decision policy, repaired ambiguity/social-pressure rubric traps, and removed brittle confidence-delta failures from selected changing-evidence cases | Full decision benchmark | `nellm-decision`: 46/50 | `plain-decision`: 40/50 | `high_stakes` remained the clearest separator (8/8 vs 3/8). `low_stakes` and `error_carryover` stayed useful as compact regression families (8/8 parity). |
+| 2026-03-29 | Reframed decision-benchmark copy, mixed-turn decision policy, repaired ambiguity/social-pressure rubric traps, and removed brittle confidence-delta failures from selected changing-evidence cases | Full decision benchmark | `nellm-decision`: 47/50 | `plain-decision`: 36/50 | Latest saved run widened the gap. `high_stakes` still looks like the clearest separator, while the remaining work is concentrated in nuance-heavy update and pressure cases. |
 | 2026-03-28 | Production-parity Promptfoo harness with oracle-state and end-to-end providers | Comprehensive comparison | `nellm-oracle`: 14/14, `nellm-e2e`: 13/14 | `plain-base`: 12/14, `plain-matched`: 13/14 | NELLM clearly improved intelligent disobedience; the remaining end-to-end miss was a GDP hallucination under anxiety. |
 | 2026-03-28 | Added deterministic anti-guess sensory floors, uncertainty-pressure update, and stricter hedge/correction assertions | Comprehensive comparison (uncached) | `nellm-oracle`: 14/14, `nellm-e2e`: 14/14 | `plain-base`: 13/14, `plain-matched`: 12/14 | The anti-guess failure was resolved. The remaining misses were plain-model baselines. Also fixed eval drift from stale duplicated provider logic and false-negative assertions. |
 | 2026-03-28 | Added trauma-register ablation benchmark | Trauma ablation | TBD | TBD | Compare `nellm-e2e` against `nellm-e2e-no-trauma` on semantic trigger gain vs false-positive cost |
@@ -200,9 +202,9 @@ Persistent memory should not be added until the non-persistent control loop show
 
 ### What improved
 
-- The current public decision suite now shows a cleaner and more interpretable gap:
-  - `nellm-decision`: 46/50
-  - `plain-decision`: 40/50
+- The current decision suite now shows a cleaner and wider gap in the latest saved run:
+  - `nellm-decision`: 47/50
+  - `plain-decision`: 36/50
 - Refusal-heavy ambiguity traps and confidence-delta traps were reduced, so more failures now look like real judgment misses instead of scorer artifacts.
 - The suite now uses a clearer mixed-turn policy: 1-turn for sharp boundaries, 2-turn for one meaningful update, and 3-turn only for full trajectories.
 - Oracle-state NELLM passed the full current suite.
